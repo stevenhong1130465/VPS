@@ -29,7 +29,9 @@ jobs:
 
       - name: Create RDP User
         run: |
-          $password = "RDP@123456!"
+          Add-Type -AssemblyName System.Web
+
+          $password = [System.Web.Security.Membership]::GeneratePassword(20, 5)
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
 
           New-LocalUser -Name "RDP" -Password $securePass -AccountNeverExpires
