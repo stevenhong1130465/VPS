@@ -29,17 +29,41 @@ jobs:
 
       - name: Create RDP User
         run: |
-          Add-Type -AssemblyName System.Web
+          # 定義密碼元素
+          $charSet = @{
+              Upper   = [char[]](65..90)      # A-Z
+              Lower   = [char[]](97..122)     # a-z
+              Number  = [char[]](48..57)      # 0-9
+              Special = [char[]](33..47 + 58..64 + 91..96 + 123..126) # 特殊符號
+          }
 
-          $password = [System.Web.Security.Membership]::GeneratePassword(20, 5)
+          # 隨機挑選字符
+          $rawPassword = @()
+          $rawPassword += $charSet.Upper | Get-Random -Count 4
+          $rawPassword += $charSet.Lower | Get-Random -Count 4
+          $rawPassword += $charSet.Number | Get-Random -Count 4
+          $rawPassword += $charSet.Special | Get-Random -Count 4
+
+          # 洗牌並合併成字串
+          $password = -join ($rawPassword | Sort-Object { Get-Random })
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
 
+          # 刪掉舊用戶（如果存在）
+          if (Get-LocalUser -Name "RDP" -ErrorAction SilentlyContinue) {
+              Remove-LocalUser -Name "RDP"
+          }
+
+          # 建立新用戶
           New-LocalUser -Name "RDP" -Password $securePass -AccountNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member "RDP"
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP"
 
+          # 將帳密寫入環境變數
           echo "RDP_USER=RDP" >> $env:GITHUB_ENV
           echo "RDP_PASS=$password" >> $env:GITHUB_ENV
+
+          Write-Host "RDP user created. Password: $password"
+
 
       # ⭐⭐ 這一段就是你要的重點 ⭐⭐
       - name: Download Bandicam and RaiDrive to RDP Desktop
